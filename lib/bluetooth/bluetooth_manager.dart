@@ -101,44 +101,66 @@ class BluetoothManager {
   // ------------------------------------------------------------
   Future<void> connect(BluetoothDevice device) async {
     await stopScan();
-    _device = device;
 
+    // --------------------------------------------------------
+    //  Notify UI that we are *attempting* to connect – use the
+    //  same scan listener as a simple  "progress/yellow" signal.
+    // --------------------------------------------------------
+    _scanListener.notify(isScanning: true); // show YELLOW ("connecting")
+
+    bool success = false;
     try {
       await device.connect(autoConnect: false, timeout: const Duration(seconds: 10));
+
+      // Wait a beat for service discovery to be stable
+      await Future.delayed(const Duration(seconds: 1));
+
+      // --------------------------------------------------------
+      //  Discover services & characteristics
+      // --------------------------------------------------------
+      _uuidMgr.reset();
+      final services = await device.discoverServices();
+      for (final s in services) {
+        _uuidMgr.collect(s.characteristics);
+      }
+
+      // Connection succeeded -------------------------------------------------
+      _device = device;
+      _connectListener.notify(device: device, isConnect: true);
+      success = true;
+
+      // Auto-handle disconnects ---------------------------------------------
+      device.connectionState.listen((state) {
+        if (state == BluetoothConnectionState.disconnected) {
+          _device = null;
+          _connectListener.notify(device: device, isConnect: false);
+        }
+      });
+
     } on FlutterBluePlusException catch (e) {
       // Retry once on the infamous GATT 133 (Android quirk)
       if (e.code == 133) {
-        await device.clearGattCache();
-        await Future.delayed(const Duration(seconds: 1));
-        await device.connect(autoConnect: false);
-      } else {
-        rethrow;
+        try {
+          await device.clearGattCache();
+          await Future.delayed(const Duration(seconds: 1));
+          await device.connect(autoConnect: false);
+        } catch (_) {
+          // fall through to error handling below
+        }
       }
-    }
-
-    // Wait a beat for service discovery to be stable
-    await Future.delayed(const Duration(seconds: 1));
-
-    // --------------------------------------------------------
-    //  Discover services & characteristics
-    // --------------------------------------------------------
-    _uuidMgr.reset();
-    final services = await device.discoverServices();
-    for (final s in services) {
-      _uuidMgr.collect(s.characteristics);
-    }
-
-    _connectListener.notify(device: device, isConnect: true);
-
-    // --------------------------------------------------------
-    //  Auto-handle disconnects
-    // --------------------------------------------------------
-    device.connectionState.listen((state) {
-      if (state == BluetoothConnectionState.disconnected) {
+      // Connection failed ----------------------------------------------------
+      _connectListener.notify(device: device, isConnect: false);
+      rethrow;
+    } catch (e) {
+      _connectListener.notify(device: device, isConnect: false);
+      rethrow;
+    } finally {
+      // Turn off the yellow indicator regardless of outcome
+      _scanListener.notify(isScanning: false);
+      if (!success) {
         _device = null;
-        _connectListener.notify(device: device, isConnect: false);
       }
-    });
+    }
   }
 
   Future<void> disconnect() async {

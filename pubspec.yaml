@@ -1,5 +1,5 @@
-name: smartring_flutter
-description: Connect to FOI Smart Ring and stream vitals
+name: carevia
+description: CareVia – Smart Ring health monitoring demo
 sdk: ">=3.3.0 <4.0.0"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -39,6 +39,7 @@ dependencies:
   hive_flutter: ^1.1.0
   path_provider: ^2.1.1
   cupertino_icons: ^1.0.8
+  flutter_svg: ^2.0.9
   smartring_plugin:
     path: ../smartring_plugin/
   location: ^8.0.0
@@ -98,3 +99,12 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+  assets:
+    - assets/images/
+
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-VariableFont_opsz,wght.ttf
+        - asset: assets/fonts/Inter-Italic-VariableFont_opsz,wght.ttf

@@ -10,6 +10,7 @@ import 'device_info_page.dart';
 import 'sample_data_page.dart';
 import 'ring_data_receiver.dart';
 import 'retrieve_data_page.dart';
+import 'ui/widgets/health_dashboard.dart';
 
 enum ConnStatus { disconnected, scanning, connected }
 
@@ -18,17 +19,6 @@ void main() async {
   await Get.putAsync(() async {
     final repo = RingSettingsRepository();
     await repo.init();
-
-    // ---------- attempt auto-reconnect -----------------------
-    final saved = await repo.getSavedDevice();
-    if (saved != null) {
-      try {
-        await BluetoothManager.instance.connect(saved);
-        await RingDataReceiver.instance.start();
-      } catch (_) {
-        // ignore – user can reconnect from UI
-      }
-    }
 
     return repo;
   });
@@ -40,7 +30,7 @@ class RingApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Smart Ring Demo',
+      title: 'CareVia',
       theme: ThemeData(primarySwatch: Colors.indigo),
       home: const RingHome(),
     );
@@ -77,6 +67,24 @@ class _RingHomeState extends State<RingHome> {
     _bt.addConnectListener((device, isConnect) {
       _status.value = isConnect ? ConnStatus.connected : ConnStatus.disconnected;
     });
+
+    // Kick off auto-reconnect *after* the UI is up so that the user can
+    // see the yellow "connecting" indicator and any errors that follow.
+    _attemptAutoReconnect();
+  }
+
+  // Attempts to reconnect to the last-used ring without blocking the UI.
+  void _attemptAutoReconnect() async {
+    final repo = Get.find<RingSettingsRepository>();
+    final saved = await repo.getSavedDevice();
+    if (saved == null) return;
+
+    try {
+      await _bt.connect(saved);
+      await RingDataReceiver.instance.start();
+    } catch (_) {
+      // Silently ignore – user can reconnect manually from the UI.
+    }
   }
 
   Color _colorOf(ConnStatus s) {
@@ -107,7 +115,7 @@ class _RingHomeState extends State<RingHome> {
                   ),
                 )),
             const SizedBox(width: 8),
-            const Text('Smart Ring'),
+            const Text('CareVia'),
           ],
         ),
       ),
@@ -175,7 +183,8 @@ class _RingHomeState extends State<RingHome> {
         ),
       ),
       body: const Center(
-        child: Text('Select an option from the menu', style: TextStyle(fontSize: 18)),
+        // New health dashboard while keeping connection indicator in AppBar.
+        child: HealthDashboard(embedded: true),
       ),
     );
   }
