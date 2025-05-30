@@ -64,6 +64,7 @@ class AppDrawer extends StatelessWidget {
                 MaterialPageRoute(builder: (context) => const SampleDataPage()),
               ),
             ),
+            const Divider(),
           ],
         ),
       ),

@@ -9,6 +9,7 @@ import 'steps_chart.dart';
 import 'temperature_chart.dart';
 import 'app_footer.dart';
 import 'app_drawer.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 /// A comprehensive health dashboard widget that displays various health metrics
 /// including vitals, trends, and activity data.
@@ -162,25 +163,29 @@ class _HealthDashboardState extends State<HealthDashboard> {
   }
 
   Widget _buildDateAndSync() {
+    return ValueListenableBuilder(
+      valueListenable: Hive.box('sync_state').listenable(keys: ['lastProcessed']),
+      builder: (context, box, _) {
+        final millis = box.get('lastProcessed');
+        DateTime? ts;
+        if (millis is int) ts = DateTime.fromMillisecondsSinceEpoch(millis).toLocal();
+        String label = ts != null ? _formatTime(ts) : 'Never';
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Today',
+                Text('Today',
               style: TextStyle(
                 fontFamily: 'Inter',
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
                 color: Colors.grey[800],
-              ),
-              semanticsLabel: 'Today\'s date',
-            ),
+                    )),
             const SizedBox(height: 9),
             Text(
-              'May 20, 2023',
+                  _formatDate(DateTime.now()),
               style: TextStyle(
                 fontFamily: 'Inter',
                 fontSize: 14,
@@ -197,18 +202,34 @@ class _HealthDashboardState extends State<HealthDashboard> {
             borderRadius: BorderRadius.circular(9999),
           ),
           child: Text(
-            'Last sync: 10:45 AM',
+                'Last sync: $label',
             style: const TextStyle(
               fontFamily: 'Inter',
               fontSize: 12,
               fontWeight: FontWeight.w400,
               color: Color(0xFF065F46),
             ),
-            semanticsLabel: 'Last synchronized at 10:45 AM',
           ),
         ),
       ],
     );
+      },
+    );
+  }
+
+  String _formatTime(DateTime dt) {
+    final h = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+    final m = dt.minute.toString().padLeft(2, '0');
+    final period = dt.hour >= 12 ? 'PM' : 'AM';
+    return '$h:$m $period';
+  }
+
+  String _formatDate(DateTime dt) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
   }
 
   Widget _buildBatteryStatus() {

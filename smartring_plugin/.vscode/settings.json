@@ -1,0 +1,11 @@
+{
+    "cmake.sourceDirectory": "/home/czq841/code/pro/flutterProject/smartring_plugin/src",
+    "files.associations": {
+        "smartring_plugin.h": "c",
+        "type_traits": "c",
+        "stdint.h": "c",
+        "limits": "c",
+        "stdio.h": "c",
+        "unistd.h": "c"
+    }
+}

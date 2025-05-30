@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 
@@ -8,6 +9,8 @@ import 'models/health_sample.dart';
 import 'runtime/ring_live_buffer.dart';
 import 'runtime/ring_sdk_bridge.dart';
 import 'package:smartring_plugin/sdk/common/ble_protocol_constant.dart';
+import 'data/repositories/raw_data_repository.dart';
+import 'data/models/raw_frame.dart';
 
 /// ------------------------------------------------------------
 ///  RingDataReceiver
@@ -25,6 +28,7 @@ class RingDataReceiver {
   Stream<HealthSample> get stream => _ctrl.stream;
 
   bool _started = false;
+  int _lastUuid = 0;
 
   /// Call after BluetoothManager.connect succeeds.
   Future<void> start() async {
@@ -69,6 +73,26 @@ class RingDataReceiver {
     );
     _ctrl.add(sample);
     RingLiveBuffer().add(sample);
+
+    // Store raw frame for processing
+    final frame = RawFrame(
+      timeStamp: DateTime.now().millisecondsSinceEpoch,
+      heartRate: bytes[0],
+      motionDetectionCount: 0,
+      detectionMode: 0,
+      sportsMode: '',
+      wearStatus: 0,
+      chargeStatus: 0,
+      uuid: _lastUuid++,  // Use a simple incrementing counter for UUID
+      ox: bytes[1],
+      hrv: bytes[2] | (bytes[3] << 8),
+      step: 0,
+      reStep: 0,
+      batteryLevel: 0,
+      kind: RawKind.ppgIrOrGreen,
+      payload: Uint8List.fromList(bytes),
+    );
+    RawDataRepository.instance.append(frame);
   }
 
   Future<void> dispose() async {

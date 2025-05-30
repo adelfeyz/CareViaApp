@@ -112,30 +112,30 @@ class BluetoothManager {
     try {
       await device.connect(autoConnect: false, timeout: const Duration(seconds: 10));
 
-      // Wait a beat for service discovery to be stable
-      await Future.delayed(const Duration(seconds: 1));
+    // Wait a beat for service discovery to be stable
+    await Future.delayed(const Duration(seconds: 1));
 
-      // --------------------------------------------------------
-      //  Discover services & characteristics
-      // --------------------------------------------------------
-      _uuidMgr.reset();
-      final services = await device.discoverServices();
-      for (final s in services) {
-        _uuidMgr.collect(s.characteristics);
-      }
+    // --------------------------------------------------------
+    //  Discover services & characteristics
+    // --------------------------------------------------------
+    _uuidMgr.reset();
+    final services = await device.discoverServices();
+    for (final s in services) {
+      _uuidMgr.collect(s.characteristics);
+    }
 
       // Connection succeeded -------------------------------------------------
       _device = device;
-      _connectListener.notify(device: device, isConnect: true);
+    _connectListener.notify(device: device, isConnect: true);
       success = true;
 
       // Auto-handle disconnects ---------------------------------------------
-      device.connectionState.listen((state) {
-        if (state == BluetoothConnectionState.disconnected) {
-          _device = null;
-          _connectListener.notify(device: device, isConnect: false);
-        }
-      });
+    device.connectionState.listen((state) {
+      if (state == BluetoothConnectionState.disconnected) {
+        _device = null;
+        _connectListener.notify(device: device, isConnect: false);
+      }
+    });
 
     } on FlutterBluePlusException catch (e) {
       // Retry once on the infamous GATT 133 (Android quirk)

@@ -11,17 +11,46 @@ import 'sample_data_page.dart';
 import 'ring_data_receiver.dart';
 import 'retrieve_data_page.dart';
 import 'ui/widgets/health_dashboard.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'data/models/raw_frame.dart';
+import 'data/repositories/raw_data_repository.dart';
+import 'data/repositories/sync_state_repository.dart';
+import 'package:workmanager/workmanager.dart';
+import 'background/background_scheduler.dart';
+import 'background/background_worker.dart';
+import 'ui/widgets/battery_indicator.dart';
+import 'data/models/sleep_episode.dart';
+import 'data/models/sleep_stage.dart';
+import 'ui/pages/sleep_page.dart';
+import 'data/history_controller.dart';
 
 enum ConnStatus { disconnected, scanning, connected }
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Hive.initFlutter();
+  Hive.registerAdapter(RawKindAdapter());
+  Hive.registerAdapter(RawFrameAdapter());
+  Hive.registerAdapter(SleepEpisodeAdapter());
+  Hive.registerAdapter(SleepStageAdapter());
+  Hive.registerAdapter(StageTypeAdapter());
+  await Hive.openBox<SleepEpisode>('sleep.hive');
+  await RawDataRepository.instance.init();
+  await SyncStateRepository.instance.init();
+
+  // Background processing setup
+  Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
+  BackgroundScheduler.instance.start();
+
   await Get.putAsync(() async {
     final repo = RingSettingsRepository();
     await repo.init();
-
     return repo;
   });
+
+  // Initialize HistoryController
+  Get.put(HistoryController());
+
   runApp(const RingApp());
 }
 
@@ -116,6 +145,14 @@ class _RingHomeState extends State<RingHome> {
                 )),
             const SizedBox(width: 8),
             const Text('CareVia'),
+            const SizedBox(width: 4),
+            SizedBox(
+              width: 20,
+              child: BatteryIndicator(
+                percentage: 0.85, // TODO: bind to real battery value
+                height: 8,
+              ),
+            ),
           ],
         ),
       ),
@@ -158,6 +195,16 @@ class _RingHomeState extends State<RingHome> {
                     Navigator.of(context).pop();
                     Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const RetrieveDataPage()),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.bedtime),
+                  title: const Text('Sleep'),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const SleepPage()),
                     );
                   },
                 ),
